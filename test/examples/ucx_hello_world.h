@@ -16,6 +16,8 @@
 #include <unistd.h>
 #include <netdb.h>
 
+#define UCX_HELLO_WORLD_CUDA 1
+
 #ifdef UCX_HELLO_WORLD_CUDA
 # include <cuda.h>
 # include <cuda_runtime.h>
