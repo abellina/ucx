@@ -6,8 +6,8 @@
 */
 
 #ifndef HAVE_CONFIG_H
-#  define HAVE_CONFIG_H /* Force using config.h, so test would fail if header
-                           actually tries to use it */
+# define HAVE_CONFIG_H /* Force using config.h, so test would fail if header
+                          actually tries to use it */
 #endif
 
 /*
@@ -84,6 +84,26 @@ static size_t local_addr_len;
 static size_t peer_addr_len;
 
 static ucs_status_t parse_cmd(int argc, char * const argv[], char **server_name);
+
+static void set_msg_data_len(struct msg *msg, uint64_t data_len)
+{
+    mem_type_allocators[test_mem_type].memcpy(STRUCT_FIELD_PTR(msg,
+                                                               struct msg,
+                                                               data_len),
+                                              &data_len,
+                                              sizeof(data_len));
+}
+
+static uint64_t get_msg_data_len(const struct msg *msg)
+{
+    uint64_t data_len;
+    mem_type_allocators[test_mem_type].memcpy(&data_len,
+                                              STRUCT_FIELD_PTR(msg,
+                                                               struct msg,
+                                                               data_len),
+                                              sizeof(data_len));
+    return data_len;
+}
 
 static void request_init(void *request)
 {
@@ -183,6 +203,7 @@ static int run_ucx_client(ucp_worker_h ucp_worker)
     struct ucx_context *request = 0;
     size_t msg_len = 0;
     int ret = -1;
+    char *str;
 
     /* Send client UCX address to server */
     ep_params.field_mask      = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
@@ -194,11 +215,13 @@ static int run_ucx_client(ucp_worker_h ucp_worker)
     CHKERR_JUMP(status != UCS_OK, "ucp_ep_create\n", err);
 
     msg_len = sizeof(*msg) + local_addr_len;
-    msg = calloc(1, msg_len);
-    CHKERR_JUMP(!msg, "allocate memory\n", err_ep);
+    msg = mem_type_allocators[test_mem_type].malloc(msg_len);
+    CHKERR_JUMP(msg == NULL, "allocate memory\n", err_ep);
+    mem_type_allocators[test_mem_type].memset(msg, 0, msg_len);
 
-    msg->data_len = local_addr_len;
-    memcpy(msg + 1, local_addr, local_addr_len);
+    set_msg_data_len(msg, local_addr_len);
+    mem_type_allocators[test_mem_type].memcpy(msg + 1, local_addr,
+                                              local_addr_len);
 
     request = ucp_tag_send_nb(server_ep, msg, msg_len,
                               ucp_dt_make_contig(1), tag,
@@ -213,7 +236,7 @@ static int run_ucx_client(ucp_worker_h ucp_worker)
         ucp_request_release(request);
     }
 
-    free (msg);
+    mem_type_allocators[test_mem_type].free(msg);
 
     if (err_handling_opt.failure) {
         fprintf(stderr, "Emulating unexpected failure on client side\n");
@@ -247,8 +270,8 @@ static int run_ucx_client(ucp_worker_h ucp_worker)
         }
     }
 
-    msg = malloc(info_tag.length);
-    CHKERR_JUMP(!msg, "allocate memory\n", err_ep);
+    msg = mem_type_allocators[test_mem_type].malloc(info_tag.length);
+    CHKERR_JUMP(msg == NULL, "allocate memory\n", err_ep);
 
     request = ucp_tag_msg_recv_nb(ucp_worker, msg, info_tag.length,
                                   ucp_dt_make_contig(1), msg_tag,
@@ -268,11 +291,17 @@ static int run_ucx_client(ucp_worker_h ucp_worker)
         printf("UCX data message was received\n");
     }
 
-    printf("\n\n----- UCP TEST SUCCESS ----\n\n");
-    printf("%s", (char *)(msg + 1));
-    printf("\n\n---------------------------\n\n");
+    str = calloc(1, test_string_length);
+    if (str != NULL) {
+        mem_type_allocators[test_mem_type].memcpy(str, msg + 1,
+                                                  test_string_length);
+        printf("\n\n----- UCP TEST SUCCESS ----\n\n");
+        printf("%s", str);
+        printf("\n\n---------------------------\n\n");
+        free(str);
+    }
 
-    free(msg);
+    mem_type_allocators[test_mem_type].free(msg);
 
     ret = 0;
 
@@ -328,8 +357,8 @@ static int run_ucx_server(ucp_worker_h ucp_worker)
         msg_tag = ucp_tag_probe_nb(ucp_worker, tag, tag_mask, 1, &info_tag);
     } while (msg_tag == NULL);
 
-    msg = malloc(info_tag.length);
-    CHKERR_JUMP(!msg, "allocate memory\n", err);
+    msg = mem_type_allocators[test_mem_type].malloc(info_tag.length);
+    CHKERR_JUMP(msg == NULL, "allocate memory\n", err);
     request = ucp_tag_msg_recv_nb(ucp_worker, msg, info_tag.length,
                                   ucp_dt_make_contig(1), msg_tag, recv_handler);
 
@@ -347,17 +376,18 @@ static int run_ucx_server(ucp_worker_h ucp_worker)
         printf("UCX address message was received\n");
     }
 
-    peer_addr = malloc(msg->data_len);
+    peer_addr = malloc(get_msg_data_len(msg));
     if (!peer_addr) {
         fprintf(stderr, "unable to allocate memory for peer address\n");
         free(msg);
         goto err;
     }
 
-    peer_addr_len = msg->data_len;
-    memcpy(peer_addr, msg + 1, peer_addr_len);
+    peer_addr_len = get_msg_data_len(msg);
+    mem_type_allocators[test_mem_type].memcpy(peer_addr, msg + 1,
+                                              peer_addr_len);
 
-    free(msg);
+    mem_type_allocators[test_mem_type].free(msg);
 
     /* Send test string to client */
     ep_params.field_mask      = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
@@ -374,10 +404,11 @@ static int run_ucx_server(ucp_worker_h ucp_worker)
     CHKERR_JUMP(status != UCS_OK, "ucp_ep_create\n", err);
 
     msg_len = sizeof(*msg) + test_string_length;
-    msg = calloc(1, msg_len);
-    CHKERR_JUMP(!msg, "allocate memory\n", err_ep);
+    msg = mem_type_allocators[test_mem_type].malloc(msg_len);
+    CHKERR_JUMP(msg == NULL, "allocate memory\n", err_ep);
+    mem_type_allocators[test_mem_type].memset(msg, 0, msg_len);
 
-    msg->data_len = msg_len - sizeof(*msg);
+    set_msg_data_len(msg, msg_len - sizeof(*msg));
     generate_test_string((char *)(msg + 1), test_string_length);
 
     request = ucp_tag_send_nb(client_ep, msg, msg_len,
@@ -399,7 +430,7 @@ static int run_ucx_server(ucp_worker_h ucp_worker)
             status, ucs_status_string(status));
 
     ret = 0;
-    free(msg);
+    mem_type_allocators[test_mem_type].free(msg);
 
 err_ep:
     ucp_ep_destroy(client_ep);
@@ -539,7 +570,7 @@ ucs_status_t parse_cmd(int argc, char * const argv[], char **server_name)
     err_handling_opt.ucp_err_mode   = UCP_ERR_HANDLING_MODE_NONE;
     err_handling_opt.failure        = 0;
 
-    while ((c = getopt(argc, argv, "wfben:p:s:h")) != -1) {
+    while ((c = getopt(argc, argv, "wfben:p:s:m:h")) != -1) {
         switch (c) {
         case 'w':
             ucp_test_mode = TEST_MODE_WAIT;
@@ -571,6 +602,20 @@ ucs_status_t parse_cmd(int argc, char * const argv[], char **server_name)
                 return UCS_ERR_UNSUPPORTED;
             }	
             break;
+        case 'm':
+            if (!strcmp(optarg, "host")) {
+                test_mem_type = UCS_MEMORY_TYPE_HOST;
+            } else if (!strcmp(optarg, "cuda") &&
+                       (mem_type_allocators[UCS_MEMORY_TYPE_CUDA].malloc != NULL)) {
+                test_mem_type = UCS_MEMORY_TYPE_CUDA;
+            } else if (!strcmp(optarg, "cuda-managed") &&
+                       (mem_type_allocators[UCS_MEMORY_TYPE_CUDA_MANAGED].malloc != NULL)) {
+                test_mem_type = UCS_MEMORY_TYPE_CUDA_MANAGED;
+            } else {
+                fprintf(stderr, "Unsupported memory type: \"%s\".\n", optarg);
+                return UCS_ERR_INVALID_PARAM;
+            }
+            break;
         case '?':
             if (optopt == 's') {
                 fprintf(stderr, "Option -%c requires an argument.\n", optopt);
@@ -598,7 +643,15 @@ ucs_status_t parse_cmd(int argc, char * const argv[], char **server_name)
                     "of the server (required for client and should be ignored "
                     "for server)\n");
             fprintf(stderr, "  -p port Set alternative server port (default:13337)\n");
-            fprintf(stderr, "  -s size Set test string length (default:16)\n");
+            fprintf(stderr, "  -s size Set test string length (default:16)\n");       
+            fprintf(stderr, "  -m <mem type>  memory type of messages\n");
+            fprintf(stderr, "                 host - system memory (default)\n");
+            if (mem_type_allocators[UCS_MEMORY_TYPE_CUDA].malloc != NULL) {
+                fprintf(stderr, "                 cuda - NVIDIA GPU memory\n");
+            }
+            if (mem_type_allocators[UCS_MEMORY_TYPE_CUDA_MANAGED].malloc != NULL) {
+                fprintf(stderr, "                 cuda-managed - NVIDIA cuda managed/unified memory\n");
+            }
             fprintf(stderr, "\n");
             return UCS_ERR_UNSUPPORTED;
         }

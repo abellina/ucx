@@ -682,11 +682,17 @@ run_hello() {
 	test_args="$@"
 	test_name=${api}_hello_world
 
+	extra_gcc_options=""
+	if module_load dev/cuda && [ "X$have_cuda" == "Xyes" ]
+	then
+		extra_gcc_options="-lcuda -lcudart -DUCX_HELLO_WORLD_CUDA"
+	fi
+
 	if [ ! -x ${test_name} ]
 	then
 		gcc -o ${test_name} ${ucx_inst}/share/ucx/examples/${test_name}.c \
 		    -l${api} -lucs -I${ucx_inst}/include -L${ucx_inst}/lib \
-		    -Wl,-rpath=${ucx_inst}/lib
+		    -Wl,-rpath=${ucx_inst}/lib $extra_gcc_options
 	fi
 
 	# set smaller timeouts so the test will complete faster
@@ -712,6 +718,8 @@ run_hello() {
 		unset UCX_RC_TIMEOUT
 		unset UCX_RC_RETRY_COUNT
 	fi
+
+	module unload dev/cuda
 }
 
 #
@@ -723,10 +731,20 @@ run_ucp_hello() {
 		return # skip if cannot create ucp ep
 	fi
 
+	mem_types_list="host "
+
+	if [ "X$have_cuda" == "Xyes" ]
+	then
+		mem_types_list+="cuda cuda-managed "
+	fi
+
 	for test_mode in -w -f -b -e
 	do
-		echo "==== Running UCP hello world with mode ${test_mode} ===="
-		run_hello ucp ${test_mode}
+		for mem_type in $mem_types_list
+		do
+			echo "==== Running UCP hello world with mode ${test_mode} and \"${mem_type}\" memory type ===="
+			run_hello ucp ${test_mode} -m ${mem_type}
+		done
 	done
 	rm -f ./ucp_hello_world
 }
@@ -735,12 +753,23 @@ run_ucp_hello() {
 # Compile and run UCT hello world example
 #
 run_uct_hello() {
+	mem_types_list="host "
+
+	if [ "X$have_cuda" == "Xyes" ] && [ -f "/sys/kernel/mm/memory_peers/nv_mem/version" ]
+	then
+		# test RDMA GPUDirect
+		mem_types_list+="cuda cuda-managed "
+	fi
+
 	for send_func in -i -b -z
 	do
 		for ucx_dev in $(get_active_ib_devices)
 		do
-			echo "==== Running UCT hello world server on rc/${ucx_dev} with sending ${send_func} ===="
-			run_hello uct  -d ${ucx_dev} -t "rc" ${send_func}
+			for mem_type in $mem_types_list
+			do
+				echo "==== Running UCT hello world server on rc/${ucx_dev} with sending ${send_func} and \"${mem_type}\" memory type ===="
+				run_hello uct -d ${ucx_dev} -t "rc" ${send_func} -m ${mem_type}
+			done
 		done
 		for ucx_dev in $(get_active_ip_iface)
 		do

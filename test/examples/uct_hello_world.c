@@ -61,6 +61,26 @@ typedef struct {
 
 static void* desc_holder = NULL;
 
+static void set_uct_desc_flag(recv_desc_t *rdesc, int is_uct_desc)
+{
+    mem_type_allocators[test_mem_type].memcpy(STRUCT_FIELD_PTR(rdesc,
+                                                               recv_desc_t,
+                                                               is_uct_desc),
+                                              &is_uct_desc,
+                                              sizeof(is_uct_desc));
+}
+
+static int get_uct_desc_flag(const recv_desc_t *rdesc)
+{
+    int is_uct_desc;
+    mem_type_allocators[test_mem_type].memcpy(&is_uct_desc,
+                                              STRUCT_FIELD_PTR(rdesc,
+                                                               recv_desc_t,
+                                                               is_uct_desc),
+                                              sizeof(is_uct_desc));
+    return is_uct_desc;
+}
+
 static char *func_am_t_str(func_am_t func_am_type)
 {
     switch (func_am_type) {
@@ -123,7 +143,7 @@ ucs_status_t do_am_short(iface_info_t *if_info, uct_ep_h ep, uint8_t id,
 size_t am_bcopy_data_pack_cb(void *dest, void *arg)
 {
     am_bcopy_args_t *bc_args = arg;
-    memcpy(dest, bc_args->data, bc_args->len);
+    mem_type_allocators[test_mem_type].memcpy(dest, bc_args->data, bc_args->len);
     return bc_args->len;
 }
 
@@ -200,12 +220,17 @@ ucs_status_t do_am_zcopy(iface_info_t *if_info, uct_ep_h ep, uint8_t id,
     return status;
 }
 static void print_strings(const char *label, const char *local_str,
-                          const char *remote_str)
+                          const char *remote_str, size_t length)
 {
-    fprintf(stdout, "\n\n----- UCT TEST SUCCESS ----\n\n");
-    fprintf(stdout, "[%s] %s sent %s", label, local_str, remote_str);
-    fprintf(stdout, "\n\n---------------------------\n");
-    fflush(stdout);
+    char *str = calloc(1, length);
+    if (str != NULL) {
+        mem_type_allocators[test_mem_type].memcpy(str, remote_str, length);
+        fprintf(stdout, "\n\n----- UCT TEST SUCCESS ----\n\n");
+        fprintf(stdout, "[%s] %s sent %s", label, local_str, str);
+        fprintf(stdout, "\n\n---------------------------\n");
+        fflush(stdout);
+        free(str);
+    }
 }
 
 /* Callback to handle receive active message */
@@ -213,21 +238,22 @@ static ucs_status_t hello_world(void *arg, void *data, size_t length, unsigned f
 {
     recv_desc_t *rdesc;
     func_am_t func_am_type = *(func_am_t *)arg;
-    print_strings("callback", func_am_t_str(func_am_type), data);
+    print_strings("callback", func_am_t_str(func_am_type), data, length);
 
     if (flags & UCT_CB_PARAM_FLAG_DESC) {
         rdesc = (recv_desc_t *)data - 1;
         /* Hold descriptor to release later and return UCS_INPROGRESS */
-        rdesc->is_uct_desc = 1;
+        set_uct_desc_flag(rdesc, 1);
         desc_holder = rdesc;
         return UCS_INPROGRESS;
     }
 
     /* We need to copy-out data and return UCS_OK if want to use the data
      * outside the callback */
-    rdesc = malloc(sizeof(*rdesc) + length);
-    rdesc->is_uct_desc = 0;
-    memcpy(rdesc + 1, data, length);
+    rdesc = mem_type_allocators[test_mem_type].malloc(sizeof(*rdesc) + length);
+    CHKERR_ACTION(rdesc == NULL, "allocate memory\n", return UCS_ERR_NO_MEMORY);
+    set_uct_desc_flag(rdesc, 0);
+    mem_type_allocators[test_mem_type].memcpy(rdesc + 1, data, length);
     desc_holder = rdesc;
     return UCS_OK;
 }
@@ -275,7 +301,11 @@ static ucs_status_t init_iface(char *dev_name, char *tl_name,
     /* Check if current device and transport support required active messages */
     if ((func_am_type == FUNC_AM_SHORT) &&
         (iface_p->iface_attr.cap.flags & UCT_IFACE_FLAG_AM_SHORT)) {
-        return UCS_OK;
+        if (test_mem_type != UCS_MEMORY_TYPE_CUDA) {
+            return UCS_OK;
+        } else {
+            fprintf(stderr, "AM short protocol doesn't support CUDA memory");
+        }
     }
 
     if ((func_am_type == FUNC_AM_BCOPY) &&
@@ -403,6 +433,14 @@ int print_err_usage()
             "for server)\n");
     fprintf(stderr, "  -p port Set alternative server port (default:13337)\n");
     fprintf(stderr, "  -s size Set test string length (default:16)\n");
+    fprintf(stderr, "  -m <mem type>  memory type of messages\n");
+    fprintf(stderr, "                 host - system memory (default)\n");
+    if (mem_type_allocators[UCS_MEMORY_TYPE_CUDA].malloc != NULL) {
+        fprintf(stderr, "                 cuda - NVIDIA GPU memory\n");
+    }
+    if (mem_type_allocators[UCS_MEMORY_TYPE_CUDA_MANAGED].malloc != NULL) {
+        fprintf(stderr, "                 cuda-managed - NVIDIA cuda managed/unified memory\n");
+    }
     fprintf(stderr, "\nExample:\n");
     fprintf(stderr, "  Server: uct_hello_world -d eth0 -t tcp\n");
     fprintf(stderr, "  Client: uct_hello_world -d eth0 -t tcp -n localhost\n");
@@ -423,7 +461,7 @@ int parse_cmd(int argc, char * const argv[], cmd_args_t *args)
     args->test_strlen   = 16;
 
     opterr = 0;
-    while ((c = getopt(argc, argv, "ibzd:t:n:p:s:h")) != -1) {
+    while ((c = getopt(argc, argv, "ibzd:t:n:p:s:m:h")) != -1) {
         switch (c) {
         case 'i':
             args->func_am_type = FUNC_AM_SHORT;
@@ -456,6 +494,20 @@ int parse_cmd(int argc, char * const argv[], cmd_args_t *args)
             if (args->test_strlen <= 0) {
                 fprintf(stderr, "Wrong string size %ld\n", args->test_strlen);
                 return UCS_ERR_UNSUPPORTED;
+            }
+            break;
+        case 'm':
+            if (!strcmp(optarg, "host")) {
+                test_mem_type = UCS_MEMORY_TYPE_HOST;
+            } else if (!strcmp(optarg, "cuda") &&
+                       (mem_type_allocators[UCS_MEMORY_TYPE_CUDA].malloc != NULL)) {
+                test_mem_type = UCS_MEMORY_TYPE_CUDA;
+            } else if (!strcmp(optarg, "cuda-managed") &&
+                       (mem_type_allocators[UCS_MEMORY_TYPE_CUDA_MANAGED].malloc != NULL)) {
+                test_mem_type = UCS_MEMORY_TYPE_CUDA_MANAGED;
+            } else {
+                fprintf(stderr, "Unsupported memory type: \"%s\".\n", optarg);
+                return UCS_ERR_INVALID_PARAM;
             }
             break;
         case '?':
@@ -667,7 +719,9 @@ int main(int argc, char **argv)
     CHKERR_JUMP(UCS_OK != status, "set callback", out_free_ep);
 
     if (cmd_args.server_name) {
-        char *str = (char *)malloc(cmd_args.test_strlen);
+        char *str = (char *)mem_type_allocators[test_mem_type].
+                            malloc(cmd_args.test_strlen);
+        CHKERR_JUMP(str == NULL, "send active msg", out_free_ep);
         generate_test_string(str, cmd_args.test_strlen);
 
         /* Send active message to remote endpoint */
@@ -679,7 +733,7 @@ int main(int argc, char **argv)
             status = do_am_zcopy(&if_info, ep, id, &cmd_args, str);
         }
 
-        free(str);
+        mem_type_allocators[test_mem_type].free(str);
         CHKERR_JUMP(UCS_OK != status, "send active msg", out_free_ep);
     } else {
         recv_desc_t *rdesc;
@@ -691,12 +745,12 @@ int main(int argc, char **argv)
 
         rdesc = desc_holder;
         print_strings("main", func_am_t_str(cmd_args.func_am_type),
-                                            (char *)(rdesc + 1));
-        if (rdesc->is_uct_desc) {
+                      (char *)(rdesc + 1), cmd_args.test_strlen);
+        if (get_uct_desc_flag(rdesc)) {
             /* Release descriptor because callback returns UCS_INPROGRESS */
             uct_iface_release_desc(rdesc);
         } else {
-            free(rdesc);
+           mem_type_allocators[test_mem_type].free(rdesc);
         }
     }
 
