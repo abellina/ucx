@@ -14,6 +14,7 @@ Java_org_openucx_jucx_ucp_UcpWorker_createWorkerNative(JNIEnv *env, jclass cls,
                                                        jobject jucx_worker_params,
                                                        jlong context_ptr)
 {
+    //TODO: do we need to memset to 0?
     ucp_worker_params_t worker_params = { 0 };
     ucp_worker_h ucp_worker;
     ucp_context_h ucp_context = (ucp_context_h)context_ptr;
@@ -21,8 +22,11 @@ Java_org_openucx_jucx_ucp_UcpWorker_createWorkerNative(JNIEnv *env, jclass cls,
 
     jclass jucx_param_class = env->GetObjectClass(jucx_worker_params);
     field = env->GetFieldID(jucx_param_class, "fieldMask", "J");
+
+    //TODO: check this field_mask
     worker_params.field_mask = env->GetLongField(jucx_worker_params, field);
 
+    //TODO: what is thread mode => hello_world always sets this, to UCS_THREAD_MODE_SINGLE
     if (worker_params.field_mask & UCP_WORKER_PARAM_FIELD_THREAD_MODE) {
         field = env->GetFieldID(jucx_param_class, "threadMode", "I");
         worker_params.thread_mode = static_cast<ucs_thread_mode_t>(
@@ -43,7 +47,7 @@ Java_org_openucx_jucx_ucp_UcpWorker_createWorkerNative(JNIEnv *env, jclass cls,
         worker_params.cpu_mask = cpu_mask;
     }
 
-
+    // TODO: hello world example does not set any of these
     if (worker_params.field_mask & UCP_WORKER_PARAM_FIELD_EVENTS) {
         field = env->GetFieldID(jucx_param_class, "events", "J");
         worker_params.events = env->GetLongField(jucx_worker_params, field);

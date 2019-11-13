@@ -131,18 +131,14 @@ bool j2cInetSockAddr(JNIEnv *env, jobject sock_addr, sockaddr_storage& ss,  sock
     return false;
 }
 
+//TODO: this looks very different than the hello_world request_init function.
+// namely, request in that case is a ucx_context*, and it sets completed to 0 in that context...
+
 static inline void jucx_context_reset(struct jucx_context* ctx)
 {
     ctx->callback = NULL;
     ctx->jucx_request = NULL;
     ctx->status = UCS_INPROGRESS;
-}
-
-void jucx_request_init(void *request)
-{
-     struct jucx_context *ctx = (struct jucx_context *)request;
-     jucx_context_reset(ctx);
-     ucs_spinlock_init(&ctx->lock);
 }
 
 JNIEnv* get_jni_env()
