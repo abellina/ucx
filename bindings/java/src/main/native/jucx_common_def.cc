@@ -147,6 +147,8 @@ static inline void jucx_context_reset(struct jucx_context* ctx)
     ctx->length = 0;
 }
 
+//TODO: this looks very different than the hello_world request_init function.
+// namely, request in that case is a ucx_context*, and it sets completed to 0 in that context...
 void jucx_request_init(void *request)
 {
      struct jucx_context *ctx = (struct jucx_context *)request;
