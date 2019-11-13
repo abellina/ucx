@@ -16,14 +16,18 @@ JNIEXPORT jlong JNICALL
 Java_org_openucx_jucx_ucp_UcpContext_createContextNative(JNIEnv *env, jclass cls,
                                                          jobject jucx_ctx_params)
 {
+    //TODO: do we need to memset to 0
     ucp_params_t ucp_params = { 0 };
     ucp_context_h ucp_context;
     jfieldID field;
 
     jclass jucx_param_class = env->GetObjectClass(jucx_ctx_params);
     field = env->GetFieldID(jucx_param_class, "fieldMask", "J");
+    //TODO: hello world set sthis to UCP_PARAM_FIELD_FEATURES | UCP_PARAM_FIELD_REQUEST_SIZE | UCP_PARAM_FIELD_REQUEST_INIT
     ucp_params.field_mask = env->GetLongField(jucx_ctx_params, field);
 
+    //TODO: the hello world example sets this to UCP_FEATURE_TAG | UCP_FEATURE_WAKEUP if TEST_MODE_WAIT or TEST_MODE_EVENTFD
+    //      are set in ucp_test_mode
     if (ucp_params.field_mask & UCP_PARAM_FIELD_FEATURES) {
         field = env->GetFieldID(jucx_param_class, "features", "J");
         ucp_params.features = env->GetLongField(jucx_ctx_params, field);
@@ -49,6 +53,8 @@ Java_org_openucx_jucx_ucp_UcpContext_createContextNative(JNIEnv *env, jclass cls
 
     ucp_params.field_mask |= UCP_PARAM_FIELD_REQUEST_INIT |
                              UCP_PARAM_FIELD_REQUEST_SIZE;
+
+    //TODO: what request_size is this for?
     ucp_params.request_size = sizeof(struct jucx_context);
     ucp_params.request_init = jucx_request_init;
 
