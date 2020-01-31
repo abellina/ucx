@@ -415,7 +415,7 @@ static UCS_CLASS_INIT_FUNC(uct_cuda_ipc_iface_t, uct_md_h md, uct_worker_h worke
                             0,
                             UCS_SYS_CACHE_LINE_SIZE,
                             128,
-                            1024,
+                            -1,
                             &uct_cuda_ipc_event_desc_mpool_ops,
                             "CUDA_IPC EVENT objects");
     if (UCS_OK != status) {
