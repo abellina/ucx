@@ -147,6 +147,10 @@ public class UcpWorker extends UcxNativeStruct implements Closeable {
         return recvTaggedNonBlocking(recvBuffer, 0, 0, callback);
     }
 
+    public long[] probeTaggedNonBlocking(long tag, long tagMask, int remove) {
+        return probeTaggedNonBlockingNative(getNativeId(), tag, tagMask, remove);
+    }
+
     /**
      * This routine tries to cancels an outstanding communication request. After
      * calling this routine, the request will be in completed or canceled (but
@@ -197,6 +201,8 @@ public class UcpWorker extends UcxNativeStruct implements Closeable {
     private static native UcpRequest recvTaggedNonBlockingNative(long workerId, long localAddress,
                                                                  long size, long tag, long tagMask,
                                                                  UcxCallback callback);
+
+    private static native long[] probeTaggedNonBlockingNative(long workerId, long tag, long tagMask);
 
     private static native void cancelRequestNative(long workerId, long requestId);
 }

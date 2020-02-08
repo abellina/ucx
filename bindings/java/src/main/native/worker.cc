@@ -161,6 +161,36 @@ Java_org_openucx_jucx_ucp_UcpWorker_recvTaggedNonBlockingNative(JNIEnv *env, jcl
     return process_request(request, callback);
 }
 
+JNIEXPORT jlongArray JNICALL
+Java_org_openucx_jucx_ucp_UcpWorker_probeTaggedNonBlockingNative(JNIEnv *env, jclass cls,
+                                                                 jlong ucp_worker_ptr,
+                                                                 jlong tag, jlong tagMask,
+                                                                 jint remove)
+{
+    ucp_tag_recv_info_t tag_recv_info;
+    ucp_tag_message_h request = ucp_tag_probe_nb((ucp_worker_h)ucp_worker_ptr,
+                                                tag, tagMask, remove, &tag_recv_info);
+
+    long length = 0;
+    long sender_tag = 0;
+    if (request != NULL) {
+        ucs_trace_req("JUCX: probe_nb request %p, tag: %ld, remove: %d", request, tag, remove);
+        length = tag_recv_info.length;
+        send_tag = tag_recv_info.sender_tag;
+    } else {
+        ucs_trace_req("JUCX: NULL probe_nb, tag: %ld, remove: %d", tag, remove);
+    }
+
+    jlongArray result;
+    if (send_tag != 0) {
+        result = env->NewLongArray(env, 2);
+        result->SetLongArrayRegion(0, 1, length);
+        result->SetLongArrayRegion(0, 1, sender_tag);
+    }
+
+    return result;
+}
+
 JNIEXPORT void JNICALL
 Java_org_openucx_jucx_ucp_UcpWorker_cancelRequestNative(JNIEnv *env, jclass cls,
                                                         jlong ucp_worker_ptr,
