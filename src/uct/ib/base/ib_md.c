@@ -471,6 +471,8 @@ static ucs_status_t uct_ib_md_reg_mr(uct_ib_md_t *md, void *address,
 {
     ucs_log_level_t level = silent ? UCS_LOG_LEVEL_DEBUG : UCS_LOG_LEVEL_ERROR;
     ucs_status_t status;
+ 
+    ucs_trace("address %p, length %ld", address, length);
 
     if (length >= md->config.min_mt_reg) {
         UCS_PROFILE_CODE("reg ksm") {

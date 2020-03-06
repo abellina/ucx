@@ -16,6 +16,7 @@
 #include <ucs/sys/sys.h>
 #include <ucs/type/spinlock.h>
 #include <ucm/api/ucm.h>
+#include <cuda.h>
 
 #include "rcache.h"
 #include "rcache_int.h"
@@ -470,17 +471,55 @@ ucs_rcache_create_region(ucs_rcache_t *rcache, void *address, size_t length,
     ucs_status_t status;
     int error, merged;
 
+    CUmemorytype memType = 0;
+    uint32_t isManaged   = 0;
+    void *attrdata[] = {(void *)&memType, (void *)&isManaged};
+    CUpointer_attribute attributes[2] = {CU_POINTER_ATTRIBUTE_MEMORY_TYPE,
+                                         CU_POINTER_ATTRIBUTE_IS_MANAGED};
+    CUresult cu_err;
+    CUdeviceptr pbase;
+    size_t psize;
+
     ucs_trace_func("rcache=%s, address=%p, length=%zu", rcache->name, address,
                    length);
 
     pthread_rwlock_wrlock(&rcache->lock);
 
 retry:
-    /* Align to page size */
-    start  = ucs_align_down_pow2((uintptr_t)address,
-                                 rcache->params.alignment);
-    end    = ucs_align_up_pow2  ((uintptr_t)address + length,
-                                 rcache->params.alignment);
+    /* Check if pointer is a cuda pinned device pointer */
+    start = 0; end = 0;
+
+    cu_err = cuPointerGetAttributes(2, attributes, attrdata, (CUdeviceptr)address);
+    if ((cu_err == CUDA_SUCCESS) && (memType == CU_MEMORYTYPE_DEVICE)) {
+        if (isManaged) {
+            /* *mem_type_p = UCS_MEMORY_TYPE_CUDA_MANAGED;*/
+        } else {
+            /* *mem_type_p = UCS_MEMORY_TYPE_CUDA; */
+            cu_err = cuMemGetAddressRange(&pbase, &psize, (CUdeviceptr) address);
+            if (cu_err == CUDA_SUCCESS) {
+                start = pbase;
+                end   = pbase + psize;
+                /*
+                start = ucs_align_down_pow2((uintptr_t)pbase,
+                        rcache->params.alignment);
+                end   = ucs_align_up_pow2  ((uintptr_t)pbase + psize,
+                        rcache->params.alignment);
+                */
+            } else {
+                start = ucs_align_down_pow2((uintptr_t)address,
+                        rcache->params.alignment);
+                end   = ucs_align_up_pow2  ((uintptr_t)address + length,
+                        rcache->params.alignment);
+            }
+        }
+    } else {
+        /* Align to page size */
+        start  = ucs_align_down_pow2((uintptr_t)address,
+                rcache->params.alignment);
+        end    = ucs_align_up_pow2  ((uintptr_t)address + length,
+                rcache->params.alignment);
+    }
+
     region = NULL;
     merged = 0;
 
