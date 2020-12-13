@@ -24,6 +24,9 @@ AC_INIT([ucx], [ucx_ver_major.ucx_ver_minor])
 : ${CXXFLAGS=""}
 config_flags="$*"
 valgrind_libpath=""
+LDFLAGS="$LDFLAGS -L/usr/local/cuda-10.1/lib64 -lnvToolsExt"
+CFLAGS="$CFLAGS -I/usr/local/cuda-10.1/include/"
+CXXFLAGS="$CXXFLAGS -I/usr/local/cuda-10.1/include/"
 
 AC_USE_SYSTEM_EXTENSIONS
 AC_GNU_SOURCE

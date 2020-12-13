@@ -12,6 +12,7 @@
 #include <ucs/sys/compiler_def.h>
 #include <ucs/sys/preprocessor.h>
 #include <ucs/config/global_opts.h>
+#include <nvToolsExt.h>
 
 
 BEGIN_C_DECLS
@@ -116,9 +117,9 @@ BEGIN_C_DECLS
     static UCS_F_ALWAYS_INLINE _ret_type _name##_inner(__VA_ARGS__); \
     \
     _ret_type _name(__VA_ARGS__) { \
-        nvtxRangePush(_name); \
-        UCS_PROFILE_SCOPE_BEGIN(); \
         _ret_type _ret = _name##_inner _arglist; \
+        nvtxRangePush(__FUNCTION__); \
+        UCS_PROFILE_SCOPE_BEGIN(); \
         UCS_PROFILE_SCOPE_END(#_name); \
         nvtxRangePop(); \
         return _ret; \
