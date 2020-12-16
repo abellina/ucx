@@ -253,7 +253,9 @@ uct_cuda_ipc_progress_event_q(uct_cuda_ipc_iface_t *iface,
 
         ucs_queue_del_iter(event_q, iter);
         if (cuda_ipc_event->comp != NULL) {
+            nvtxRangePush("cuda_ipc_invoke_completion");
             uct_invoke_completion(cuda_ipc_event->comp, UCS_OK);
+            nvtxRangePop();
         }
 
         status = uct_cuda_ipc_unmap_memhandle(cuda_ipc_event->pid,
