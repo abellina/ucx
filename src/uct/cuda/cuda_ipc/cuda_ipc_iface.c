@@ -197,6 +197,7 @@ static ucs_status_t uct_cuda_ipc_iface_event_fd_get(uct_iface_h tl_iface, int *f
 
 static void uct_cuda_ipc_common_cb(void *cuda_ipc_iface)
 {
+nvtxRangePush("CUDA_IPC_COMMON_CB");
     uct_cuda_ipc_iface_t *iface = cuda_ipc_iface;
     uint64_t dummy = 1;
     int ret;
@@ -205,18 +206,21 @@ static void uct_cuda_ipc_common_cb(void *cuda_ipc_iface)
     do {
         ret = write(iface->eventfd, &dummy, sizeof(dummy));
         if (ret == sizeof(dummy)) {
+            nvtxRangePop();
             return;
         } else if (ret == -1) {
             if (errno == EAGAIN) {
                 continue;
             } else if (errno != EINTR) {
                 ucs_error("Signaling wakeup failed: %m");
+                nvtxRangePop();
                 return;
             }
         } else {
             ucs_assert(ret == 0);
         }
     } while (ret == 0);
+nvtxRangePop();
 }
 
 #if (__CUDACC_VER_MAJOR__ >= 100000)
