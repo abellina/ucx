@@ -196,14 +196,13 @@ static void CUDA_CB myHostCallback(CUstream hStream,  CUresult status,
 #endif
 {
     uct_cuda_copy_iface_t *iface = cuda_copy_iface;
-    nvtxRangePush("host_cb");
+    nvtxMark("host_cb");
 
     ucs_assert(iface->async.event_cb != NULL);
     /* notify user */
     UCS_ASYNC_BLOCK(iface->super.worker->async);
     iface->async.event_cb(iface->async.event_arg, 0);
     UCS_ASYNC_UNBLOCK(iface->super.worker->async);
-    nvtxRangePop();
 }
 
 static ucs_status_t uct_cuda_copy_iface_event_fd_arm(uct_iface_h tl_iface,
