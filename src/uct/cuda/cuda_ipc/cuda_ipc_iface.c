@@ -243,6 +243,8 @@ uct_cuda_ipc_progress_event_q(uct_cuda_ipc_iface_t *iface,
     ucs_status_t status;
     unsigned max_events = iface->config.max_poll;
 
+    nvtxRangePush("cuda_ipc_progress_event_q");
+
     ucs_queue_for_each_safe(cuda_ipc_event, iter, event_q, queue) {
         status = UCT_CUDADRV_FUNC_LOG_ERR(cuEventQuery(cuda_ipc_event->event));
         if (UCS_INPROGRESS == status) {
@@ -275,6 +277,8 @@ uct_cuda_ipc_progress_event_q(uct_cuda_ipc_iface_t *iface,
             break;
         }
     }
+
+    nvtxRangePop();
 
     return count;
 }

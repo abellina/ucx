@@ -424,12 +424,14 @@ uct_rc_txqp_add_flush_comp(uct_rc_iface_t *iface, uct_base_ep_t *ep,
 static UCS_F_ALWAYS_INLINE void
 uct_rc_txqp_completion_op(uct_rc_iface_send_op_t *op, const void *resp)
 {
+    nvtxRangePush("uct_rc_txqp_completion_op");
     ucs_trace_poll("complete op %p sn %d handler %s", op, op->sn,
                    ucs_debug_get_symbol_name((void*)op->handler));
     ucs_assert(op->flags & UCT_RC_IFACE_SEND_OP_FLAG_INUSE);
     op->flags &= ~(UCT_RC_IFACE_SEND_OP_FLAG_INUSE |
                    UCT_RC_IFACE_SEND_OP_FLAG_ZCOPY);
     op->handler(op, resp);
+    nvtxRangePop();
 }
 
 static UCS_F_ALWAYS_INLINE void
@@ -437,11 +439,13 @@ uct_rc_txqp_completion_desc(uct_rc_txqp_t *txqp, uint16_t sn)
 {
     uct_rc_iface_send_op_t *op;
 
+    nvtxRangePush("uct_rc_txqp_completion_desc");
     ucs_trace_poll("txqp %p complete ops up to sn %d", txqp, sn);
     ucs_queue_for_each_extract(op, &txqp->outstanding, queue,
                                UCS_CIRCULAR_COMPARE16(op->sn, <=, sn)) {
         uct_rc_txqp_completion_op(op, ucs_derived_of(op, uct_rc_iface_send_desc_t) + 1);
     }
+    nvtxRangePop();
 }
 
 static UCS_F_ALWAYS_INLINE void
