@@ -195,8 +195,8 @@ static void CUDA_CB myHostCallback(CUstream hStream,  CUresult status,
                                    void *cuda_copy_iface)
 #endif
 {
-    nvtxRangePush("host_cb");
     uct_cuda_copy_iface_t *iface = cuda_copy_iface;
+    nvtxRangePush("host_cb");
 
     ucs_assert(iface->async.event_cb != NULL);
     /* notify user */
