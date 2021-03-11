@@ -11,7 +11,7 @@
 
 #include <uct/api/uct.h>
 #include <ucs/debug/debug.h>
-
+#include "nvToolsExt.h"
 
 #define RC_UNSIGNALED_INF UINT16_MAX
 

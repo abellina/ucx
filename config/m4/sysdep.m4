@@ -13,9 +13,9 @@ AC_FUNC_ALLOCA
 #
 #IPC_INFO
 
-LDFLAGS="$LDFLAGS -L/usr/local/cuda-10.1/lib64 -lnvToolsExt"
-CFLAGS="$CFLAGS -I/usr/local/cuda-10.1/include/"
-CXXFLAGS="$CXXFLAGS -I/usr/local/cuda-10.1/include/"
+LDFLAGS="$LDFLAGS -L/usr/local/cuda-11.0/lib64 -lnvToolsExt"
+CFLAGS="$CFLAGS -I/usr/local/cuda-11.0/include/"
+CXXFLAGS="$CXXFLAGS -I/usr/local/cuda-11.0/include/"
 
 AC_CHECK_LIB([rt], [shm_open],     [], AC_MSG_ERROR([librt not found]))
 AC_CHECK_LIB([rt], [timer_create], [], AC_MSG_ERROR([librt not found]))

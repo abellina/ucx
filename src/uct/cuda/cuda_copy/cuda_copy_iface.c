@@ -16,6 +16,8 @@
 #include <ucs/sys/string.h>
 #include <ucs/async/async.h>
 #include <ucs/arch/cpu.h>
+#include "nvToolsExt.h"
+
 
 
 static ucs_config_field_t uct_cuda_copy_iface_config_table[] = {
@@ -193,6 +195,7 @@ static void CUDA_CB myHostCallback(CUstream hStream,  CUresult status,
                                    void *cuda_copy_iface)
 #endif
 {
+    nvtxRangePush("host_cb");
     uct_cuda_copy_iface_t *iface = cuda_copy_iface;
 
     ucs_assert(iface->async.event_cb != NULL);
@@ -200,6 +203,7 @@ static void CUDA_CB myHostCallback(CUstream hStream,  CUresult status,
     UCS_ASYNC_BLOCK(iface->super.worker->async);
     iface->async.event_cb(iface->async.event_arg, 0);
     UCS_ASYNC_UNBLOCK(iface->super.worker->async);
+    nvtxRangePop();
 }
 
 static ucs_status_t uct_cuda_copy_iface_event_fd_arm(uct_iface_h tl_iface,

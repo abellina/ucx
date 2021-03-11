@@ -12,6 +12,8 @@
 #include "cuda_ipc_md.h"
 #include "cuda_ipc_ep.h"
 
+#include "nvToolsExt.h"
+
 #include <uct/cuda/base/cuda_iface.h>
 #include <ucs/type/class.h>
 #include <ucs/sys/string.h>
@@ -197,11 +199,11 @@ static ucs_status_t uct_cuda_ipc_iface_event_fd_get(uct_iface_h tl_iface, int *f
 
 static void uct_cuda_ipc_common_cb(void *cuda_ipc_iface)
 {
-nvtxRangePush("CUDA_IPC_COMMON_CB");
     uct_cuda_ipc_iface_t *iface = cuda_ipc_iface;
     uint64_t dummy = 1;
     int ret;
 
+    nvtxRangePush("CUDA_IPC_COMMON_CB");
     /* No error handling yet */
     do {
         ret = write(iface->eventfd, &dummy, sizeof(dummy));
