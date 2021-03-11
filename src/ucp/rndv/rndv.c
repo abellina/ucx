@@ -19,6 +19,8 @@
 #include <ucp/proto/proto_am.inl>
 #include <ucs/datastruct/queue.h>
 
+#include "nvToolsExt.h"
+
 
 static UCS_F_ALWAYS_INLINE int
 ucp_rndv_is_get_zcopy(ucp_request_t *req, ucp_context_h context)
@@ -338,6 +340,7 @@ UCS_PROFILE_FUNC_VOID(ucp_rndv_complete_frag_rma_put_zcopy, (fsreq),
 static void ucp_rndv_send_frag_atp(ucp_request_t *fsreq,
                                    ucs_ptr_map_key_t req_id)
 {
+    nvtxMark("send_frag_atp");
     ucp_trace_req(fsreq, "send frag atp remote req_id 0x%"PRIxPTR, req_id);
     UCS_PROFILE_REQUEST_EVENT(fsreq, "send_frag_atp", 0);
 
@@ -351,6 +354,7 @@ static void ucp_rndv_send_frag_atp(ucp_request_t *fsreq,
     fsreq->send.proto.remote_req_id = req_id;
     fsreq->send.proto.comp_cb       = ucp_rndv_complete_frag_rma_put_zcopy;
 
+    // this will realize the put operation
     ucp_request_send(fsreq, 0);
 }
 
