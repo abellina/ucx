@@ -30,6 +30,7 @@
 #include <sys/poll.h>
 #include <sys/eventfd.h>
 #include <sys/epoll.h>
+#include "nvToolsExt.h"
 
 
 #define UCP_WORKER_HEADROOM_SIZE \
@@ -394,6 +395,7 @@ static ucs_status_t ucp_worker_wakeup_signal_fd(ucp_worker_h worker)
 {
     uint64_t dummy = 1;
     int ret;
+    nvtxRangePush("ucp_worker_wakeup_signal_fd");
 
     ucs_trace_func("worker=%p fd=%d", worker, worker->eventfd);
 
@@ -412,6 +414,8 @@ static ucs_status_t ucp_worker_wakeup_signal_fd(ucp_worker_h worker)
             ucs_assert(ret == 0);
         }
     } while (ret == 0);
+
+    nvtxRangePop();
 
     return UCS_OK;
 }
