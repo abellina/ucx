@@ -1647,6 +1647,7 @@ static ucs_status_t ucp_rndv_send_start_put_pipeline(ucp_request_t *sreq,
     /* check if lane supports host memory, to stage sends through host memory */
     md_attr = ucp_ep_md_attr(sreq->send.ep, sreq->send.lane);
     if (!(md_attr->cap.reg_mem_types & UCS_BIT(UCS_MEMORY_TYPE_HOST))) {
+        nvtxMark("start_put_pipeline_UNSUPPORTED")
         return UCS_ERR_UNSUPPORTED;
     }
 
