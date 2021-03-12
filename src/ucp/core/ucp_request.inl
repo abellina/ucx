@@ -19,6 +19,7 @@
 #include <ucs/datastruct/ptr_map.inl>
 #include <ucp/dt/dt.inl>
 #include <inttypes.h>
+#include "nvToolsExt.h"
 
 
 #define UCP_REQUEST_FLAGS_FMT \
@@ -248,6 +249,7 @@ ucp_request_try_send(ucp_request_t *req, unsigned pending_flags)
         return 0;
     } else if (status == UCS_ERR_NO_RESOURCE) {
         /* No send resources, try to add to pending queue */
+        nvtxMark("NO_RESOURCE");
         return ucp_request_pending_add(req, pending_flags);
     }
 
