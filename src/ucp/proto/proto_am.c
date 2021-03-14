@@ -51,25 +51,33 @@ ucp_do_am_single(uct_pending_req_t *self, uint8_t am_id,
 {
     ucp_request_t *req = ucs_container_of(self, ucp_request_t, send.uct);
     ucp_ep_t *ep       = req->send.ep;
+    ucs_status_t res;
     ssize_t packed_len;
     uint64_t *buffer;
+    nvtxRangePush("ucp_do_am_single");
 
     /* if packed data can fit short active message, use it, because it should
      * be faster than bcopy.
      */
     if ((max_packed_size <= UCS_ALLOCA_MAX_SIZE) &&
         (max_packed_size <= ucp_ep_config(ep)->am.max_short)) {
+        nvtxRangePush("AM_SHORT");
         req->send.lane = ucp_ep_get_am_lane(ep);
         buffer         = ucs_alloca(max_packed_size);
         packed_len     = pack_cb(buffer, req);
         ucs_assertv((packed_len >= 0) && (packed_len <= max_packed_size),
                     "packed_len=%zd max_packed_size=%zu", packed_len,
                     max_packed_size);
-
-        return uct_ep_am_short(ep->uct_eps[req->send.lane], am_id, buffer[0],
+        res = uct_ep_am_short(ep->uct_eps[req->send.lane], am_id, buffer[0],
                                &buffer[1], packed_len - sizeof(uint64_t));
+
+        nvtxRangePop();
+        return res;
     } else {
-        return ucp_do_am_bcopy_single(self, am_id, pack_cb);
+        nvtxRangePush("AM_BCOPY");
+        res = ucp_do_am_bcopy_single(self, am_id, pack_cb);
+        nvtxRangePop();
+        return res;
     }
 }
 

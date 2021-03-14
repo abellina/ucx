@@ -116,6 +116,7 @@ uct_rc_mlx5_ep_am_short_inline(uct_ep_h tl_ep, uint8_t id, uint64_t hdr,
     UCT_RC_MLX5_EP_DECL(tl_ep, iface, ep);
     UCT_RC_MLX5_CHECK_AM_SHORT(id, length, 0);
     UCT_RC_CHECK_RES_AND_FC(&iface->super, &ep->super, id);
+    nvtxMark("uct_rc_mlx5_ep_am_short_inline");
 
     uct_rc_mlx5_txqp_inline_post(iface, IBV_QPT_RC,
                                  &ep->super.txqp, &ep->tx.wq,
@@ -297,15 +298,19 @@ ucs_status_t
 uct_rc_mlx5_ep_am_short(uct_ep_h tl_ep, uint8_t id, uint64_t hdr,
                         const void *payload, unsigned length)
 {
+
 #if HAVE_IBV_DM
     uct_rc_mlx5_iface_common_t *iface = ucs_derived_of(tl_ep->iface, uct_rc_mlx5_iface_common_t);
     uct_rc_iface_t *rc_iface          = &iface->super;
     uct_rc_mlx5_ep_t *ep              = ucs_derived_of(tl_ep, uct_rc_mlx5_ep_t);
     ucs_status_t status;
     uct_rc_mlx5_dm_copy_data_t cache;
+    nvtxMark("uct_rc_mlx5_ep_am_short");
 
     if (ucs_likely((sizeof(uct_rc_mlx5_am_short_hdr_t) + length <= UCT_IB_MLX5_AM_MAX_SHORT(0)) ||
                    !iface->dm.dm)) {
+#elif
+    nvtxMark("uct_rc_mlx5_ep_am_short");
 #endif
         return uct_rc_mlx5_ep_am_short_inline(tl_ep, id, hdr, payload, length);
 #if HAVE_IBV_DM

@@ -769,6 +769,7 @@ static void ucp_worker_iface_check_events(ucp_worker_iface_t *wiface, int force)
     unsigned progress_count;
     ucs_status_t status;
 
+    nvtxRangePush("ucp_worker_iface_check_events");
     ucs_trace_func("iface=%p, force=%d", wiface->iface, force);
 
     if (force) {
@@ -790,6 +791,7 @@ static void ucp_worker_iface_check_events(ucp_worker_iface_t *wiface, int force)
                                           ucp_worker_iface_check_events_progress,
                                           wiface, 0, &wiface->check_events_id);
     }
+    nvtxRangePop();
 }
 
 static void ucp_worker_iface_deactivate(ucp_worker_iface_t *wiface, int force)
@@ -858,11 +860,13 @@ ucp_worker_iface_event_common(ucp_worker_iface_t *wiface)
 static void ucp_worker_iface_async_cb_event(void *arg, unsigned flags)
 {
     ucp_worker_iface_t *wiface = arg;
+    nvtxRangePush("async_cb_event");
 
     ucs_assert(wiface->attr.cap.event_flags & UCT_IFACE_FLAG_EVENT_ASYNC_CB);
     ucs_trace_func("async_cb for iface=%p", wiface->iface);
 
     ucp_worker_iface_event_common(wiface);
+    nvtxRangePop();
 }
 
 static void

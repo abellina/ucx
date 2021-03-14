@@ -178,16 +178,21 @@ UCS_PROFILE_FUNC(ucs_status_t, ucp_proto_progress_rndv_rtr, (self),
     size_t packed_rkey_size;
     ucs_status_t status;
 
+    nvtxRangePush("ucp_proto_progress_rndv_rtr");
+
     /* send the RTR. the pack_cb will pack all the necessary fields in the RTR */
     packed_rkey_size = ucp_ep_config(rndv_req->send.ep)->rndv.rkey_size;
     status           = ucp_do_am_single(self, UCP_AM_ID_RNDV_RTR, ucp_rndv_rtr_pack,
                                         sizeof(ucp_rndv_rtr_hdr_t) + packed_rkey_size);
+
     if (ucs_unlikely(status == UCS_ERR_NO_RESOURCE)) {
+        nvtxRangePop();
         return UCS_ERR_NO_RESOURCE;
     }
 
     /* release rndv request */
     ucp_request_put(rndv_req);
+    nvtxRangePop();
     return UCS_OK;
 }
 
@@ -1075,8 +1080,10 @@ static void ucp_rndv_send_frag_rtr(ucp_worker_h worker, ucp_request_t *rndv_req,
         frndv_req->send.ep           = rndv_req->send.ep;
         frndv_req->send.pending_lane = UCP_NULL_LANE;
 
+        nvtxRangePush("send_rtr");
         ucp_rndv_req_send_rtr(frndv_req, freq, rndv_rts_hdr->sreq.req_id,
                               freq->recv.length, offset);
+        nvtxRangePop();
         offset += frag_size;
     }
 
@@ -1303,21 +1310,25 @@ UCS_PROFILE_FUNC_VOID(ucp_rndv_receive, (worker, rreq, rndv_rts_hdr, rkey_buf),
         }
 
         if (rndv_mode == UCP_RNDV_MODE_AUTO) {
+            nvtxMark("rndv_mode_auto");
             /* check if we need pipelined memtype staging */
             if (UCP_MEM_IS_GPU(rreq->recv.mem_type) &&
                 ucp_rndv_is_recv_pipeline_needed(rndv_req, rndv_rts_hdr,
                                                  rkey_buf, rreq->recv.mem_type,
                                                  is_get_zcopy_failed)) {
+                nvtxMark("gpu_and_recv_pipeline");
                 ucp_rndv_recv_data_init(rreq, rndv_rts_hdr->size);
                 if (ucp_rndv_is_put_pipeline_needed(rndv_rts_hdr->address,
                                                     rndv_rts_hdr->size,
                                                     ep_config->rndv.min_get_zcopy,
                                                     ep_config->rndv.max_get_zcopy,
                                                     is_get_zcopy_failed)) {
+                    nvtxMark("gpu_and_recv_put_pipeline");
                     /* send FRAG RTR for sender to PUT the fragment. */
                     ucp_rndv_send_frag_rtr(worker, rndv_req, rreq, rndv_rts_hdr);
                 } else {
                     /* sender address is present. do GET pipeline */
+                    nvtxMark("gpu_and_recv_get_pipeline");
                     ucp_rndv_recv_start_get_pipeline(worker, rndv_req, rreq,
                                                      rndv_rts_hdr->sreq.req_id,
                                                      rkey_buf,
@@ -1647,7 +1658,7 @@ static ucs_status_t ucp_rndv_send_start_put_pipeline(ucp_request_t *sreq,
     /* check if lane supports host memory, to stage sends through host memory */
     md_attr = ucp_ep_md_attr(sreq->send.ep, sreq->send.lane);
     if (!(md_attr->cap.reg_mem_types & UCS_BIT(UCS_MEMORY_TYPE_HOST))) {
-        nvtxMark("start_put_pipeline_UNSUPPORTED")
+        nvtxMark("start_put_pipeline_UNSUPPORTED");
         return UCS_ERR_UNSUPPORTED;
     }
 

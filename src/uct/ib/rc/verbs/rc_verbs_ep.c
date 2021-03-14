@@ -52,10 +52,12 @@ uct_rc_verbs_ep_post_send(uct_rc_verbs_iface_t* iface, uct_rc_verbs_ep_t* ep,
     uct_ib_log_post_send(&iface->super.super, ep->qp, wr, max_log_sge,
                          (wr->opcode == IBV_WR_SEND) ? uct_rc_ep_packet_dump : NULL);
 
+    nvtxRangePush("ibv_post_send");
     ret = ibv_post_send(ep->qp, wr, &bad_wr);
     if (ret != 0) {
         ucs_fatal("ibv_post_send() returned %d (%m)", ret);
     }
+    nvtxRangePop();
 
     uct_rc_verbs_txqp_posted(&ep->super.txqp, &ep->txcnt, &iface->super, send_flags & IBV_SEND_SIGNALED);
 }
