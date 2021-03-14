@@ -72,10 +72,12 @@ ucp_do_am_single(uct_pending_req_t *self, uint8_t am_id,
                                &buffer[1], packed_len - sizeof(uint64_t));
 
         nvtxRangePop();
+        nvtxRangePop();
         return res;
     } else {
         nvtxRangePush("AM_BCOPY");
         res = ucp_do_am_bcopy_single(self, am_id, pack_cb);
+        nvtxRangePop();
         nvtxRangePop();
         return res;
     }
