@@ -328,6 +328,7 @@ UCS_PROFILE_FUNC_VOID(ucp_rndv_complete_frag_rma_put_zcopy, (fsreq),
                       ucp_request_t *fsreq)
 {
     ucp_request_t *sreq = fsreq->super_req;
+    nvtxRangePush("ucp_rndv_complete_frag_rma_put_zcopy");
 
     sreq->send.state.dt.offset += fsreq->send.length;
 
@@ -340,6 +341,7 @@ UCS_PROFILE_FUNC_VOID(ucp_rndv_complete_frag_rma_put_zcopy, (fsreq),
                                   sreq->send.msg_proto.sreq_id);
         ucp_rndv_complete_rma_put_zcopy(sreq);
     }
+    nvtxRangePop();
 }
 
 static void ucp_rndv_send_frag_atp(ucp_request_t *fsreq,
@@ -1588,6 +1590,8 @@ UCS_PROFILE_FUNC_VOID(ucp_rndv_send_frag_put_completion, (self),
                                            send.state.uct_comp);
     ucp_request_t *req  = freq->super_req;
 
+    nvtxRangePush("ucp_rndv_send_frag_put_completion");
+
     /* release memory descriptor */
     if (freq->send.mdesc) {
         ucs_mpool_put_inline((void *)freq->send.mdesc);
@@ -1602,6 +1606,7 @@ UCS_PROFILE_FUNC_VOID(ucp_rndv_send_frag_put_completion, (self),
     }
 
     ucp_request_put(freq);
+    nvtxRangePop();
 }
 
 UCS_PROFILE_FUNC_VOID(ucp_rndv_put_pipeline_frag_get_completion, (self),

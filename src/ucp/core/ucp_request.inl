@@ -153,9 +153,11 @@ static UCS_F_ALWAYS_INLINE void
 ucp_request_put(ucp_request_t *req)
 {
     ucs_trace_req("put request %p", req);
+    nvtxRangePush("ucp_request_put");
     ucs_assert(!(req->flags & UCP_REQUEST_FLAG_IN_PTR_MAP));
     UCS_PROFILE_REQUEST_FREE(req);
     ucs_mpool_put_inline(req);
+    nvtxRangePop();
 }
 
 static UCS_F_ALWAYS_INLINE void
@@ -237,23 +239,30 @@ static int UCS_F_ALWAYS_INLINE
 ucp_request_try_send(ucp_request_t *req, unsigned pending_flags)
 {
     ucs_status_t status;
+    nvtxRangePush("ucp_request_try_send");
 
     /* coverity wrongly resolves (*req).send.uct.func to test_uct_pending::pending_send_op_ok */
     /* coverity[address_free] */
     status = req->send.uct.func(&req->send.uct);
     if (status == UCS_OK) {
         /* Completed the operation, error also goes here */
+        nvtxMark("OK");
+        nvtxRangePop();
         return 1;
     } else if (status == UCS_INPROGRESS) {
         /* Not completed, but made progress */
+        nvtxMark("INPROGRESS");
+        nvtxRangePop();
         return 0;
     } else if (status == UCS_ERR_NO_RESOURCE) {
         /* No send resources, try to add to pending queue */
         nvtxMark("NO_RESOURCE");
+        nvtxRangePop();
         return ucp_request_pending_add(req, pending_flags);
     }
 
     ucs_fatal("unexpected error: %s", ucs_status_string(status));
+   nvtxRangePop();
 }
 
 /**

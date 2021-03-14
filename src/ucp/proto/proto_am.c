@@ -87,15 +87,19 @@ ucs_status_t ucp_proto_progress_am_single(uct_pending_req_t *self)
 {
     ucp_request_t *req = ucs_container_of(self, ucp_request_t, send.uct);
     ucs_status_t status;
+    nvtxRangePush("ucp_proto_progress_am_single");
 
     status = ucp_do_am_single(self, req->send.proto.am_id, ucp_proto_pack,
                               ucp_proto_max_packed_size());
     if (ucs_unlikely(status == UCS_ERR_NO_RESOURCE)) {
+        nvtxMark("ucp_proto_progress_am_single_NR");
+        nvtxRangePop();
         return UCS_ERR_NO_RESOURCE;
     }
 
     /* TODO: handle failure */
     req->send.proto.comp_cb(req);
+    nvtxRangePop();
     return UCS_OK;
 }
 
