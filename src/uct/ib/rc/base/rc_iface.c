@@ -869,14 +869,17 @@ ucs_status_t uct_rc_iface_common_event_arm(uct_iface_h tl_iface,
     int arm_rx_solicited, arm_rx_all;
     ucs_status_t status;
 
+    nvtxRangePush("uct_rc_iface_common_event_arm");
     status = uct_ib_iface_pre_arm(&iface->super);
     if (status != UCS_OK) {
+      nvtxRangePop();
         return status;
     }
 
     if (events & UCT_EVENT_SEND_COMP) {
         status = iface->super.ops->arm_cq(&iface->super, UCT_IB_DIR_TX, 0);
         if (status != UCS_OK) {
+      nvtxRangePop();
             return status;
         }
     }
@@ -895,10 +898,12 @@ ucs_status_t uct_rc_iface_common_event_arm(uct_iface_h tl_iface,
         status = iface->super.ops->arm_cq(&iface->super, UCT_IB_DIR_RX,
                                           arm_rx_solicited && !arm_rx_all);
         if (status != UCS_OK) {
+      nvtxRangePop();
             return status;
         }
     }
 
+      nvtxRangePop();
     return UCS_OK;
 
 }
