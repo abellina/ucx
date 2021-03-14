@@ -101,9 +101,11 @@ uct_rc_mlx5_iface_poll_tx(uct_rc_mlx5_iface_common_t *iface)
     uct_rc_mlx5_ep_t *ep;
     unsigned qp_num;
     uint16_t hw_ci;
+    nvtxRangePush("uct_rc_mlx5_iface_poll_tx");
 
     cqe = uct_ib_mlx5_poll_cq(&iface->super.super, &iface->cq[UCT_IB_DIR_TX]);
     if (cqe == NULL) {
+        nvtxRangePop();
         return 0;
     }
 
@@ -129,6 +131,7 @@ uct_rc_mlx5_iface_poll_tx(uct_rc_mlx5_iface_common_t *iface)
     ucs_arbiter_dispatch(&iface->super.tx.arbiter, 1, uct_rc_ep_process_pending,
                          NULL);
 
+        nvtxRangePop();
     return 1;
 }
 
