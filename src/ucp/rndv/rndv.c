@@ -899,6 +899,10 @@ ucp_rndv_send_frag_get_mem_type(ucp_request_t *sreq, ucs_ptr_map_key_t rreq_id,
     ucp_mem_desc_t *mdesc;
     ucp_lane_index_t i;
 
+    // TODO: add request pointer addr (Akshay PR) + len
+    char buff[100];
+    sprintf(buff, "send_frag_get_mem_type req=%p, len=%zu", sreq, length);
+    nvtxRangePush(buff);
     /* GET fragment to stage buffer */
 
     freq = ucp_request_get(worker);
@@ -936,6 +940,7 @@ ucp_rndv_send_frag_get_mem_type(ucp_request_t *sreq, ucs_ptr_map_key_t rreq_id,
 
     freq->status = UCS_INPROGRESS;
     ucp_request_send(freq, 0);
+    nvtxRangePop();
 }
 
 UCS_PROFILE_FUNC_VOID(ucp_rndv_recv_frag_get_completion, (self),

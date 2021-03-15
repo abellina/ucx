@@ -162,6 +162,7 @@ uct_cuda_copy_progress_event_queue(uct_cuda_copy_iface_t *iface,
     ucs_queue_for_each_extract(cuda_event, queue_head, queue,
                                cudaEventQuery(cuda_event->event) == cudaSuccess) {
         ucs_queue_remove(queue_head, &cuda_event->queue);
+        nvtxRangePush("progress_evt_queue_extract");
         if (cuda_event->comp != NULL) {
             uct_invoke_completion(cuda_event->comp, UCS_OK);
         }
@@ -169,8 +170,10 @@ uct_cuda_copy_progress_event_queue(uct_cuda_copy_iface_t *iface,
         ucs_mpool_put(cuda_event);
         count++;
         if (count >= max_events) {
+            nvtxRangePop();
             break;
         }
+        nvtxRangePop();
     }
     return count;
 }

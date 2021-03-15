@@ -71,6 +71,7 @@ uct_rc_mlx5_ep_zcopy_post(uct_rc_mlx5_ep_t *ep, unsigned opcode,
     uct_rc_mlx5_iface_common_t *iface  = ucs_derived_of(ep->super.super.super.iface,
                                                         uct_rc_mlx5_iface_common_t);
     uint16_t sn;
+    nvtxRangePush("uct_rc_mlx5_ep_zcopy_post");
 
     sn = ep->tx.wq.sw_pi;
     uct_rc_mlx5_txqp_dptr_post_iov(iface, IBV_QPT_RC,
@@ -87,6 +88,7 @@ uct_rc_mlx5_ep_zcopy_post(uct_rc_mlx5_ep_t *ep, unsigned opcode,
                               op_flags | UCT_RC_IFACE_SEND_OP_FLAG_ZCOPY,
                               iov, iovcnt, iov_total_length);
 
+    nvtxRangePop();
     return UCS_INPROGRESS;
 }
 
