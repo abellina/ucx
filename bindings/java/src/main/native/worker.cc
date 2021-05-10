@@ -301,7 +301,7 @@ Java_org_openucx_jucx_ucp_UcpWorker_setAmRecvHandlerNative(JNIEnv *env, jclass c
                        UCP_AM_HANDLER_PARAM_FIELD_CB    |
                        UCP_AM_HANDLER_PARAM_FIELD_ARG;
     param.id         = amId;
-    param.flags      = UCP_AM_FLAG_WHOLE_MSG;
+    param.flags      = UCP_AM_FLAG_WHOLE_MSG | UCP_AM_FLAG_PERSISTENT_DATA;
     param.cb         = am_recv_callback;
     param.arg        = env->NewWeakGlobalRef(callbackAndWorker);
 
